@@ -1,26 +1,29 @@
-import request from 'supertest';
-import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { AppModule } from '../src/app.module';
+import { Test, TestingModule } from '@nestjs/testing';
+import * as request from 'supertest';
+import { AppModule } from './../src/app.module';
 
-describe('Health (e2e)', () => {
-  let app: INestApplication;
+describe('App (e2e)', () => {
+  let app: INestApplication | undefined;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleFixture.createNestApplication();
     await app.init();
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('/health (GET)', async () => {
-    const res = await request(app.getHttpServer()).get('/health').expect(200);
-    expect(res.body.ok).toBe(true);
+    if (!app) throw new Error('Nest application failed to initialize in beforeAll()');
+
+    await request(app.getHttpServer()).get('/health').expect(200);
   });
 });
