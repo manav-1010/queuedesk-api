@@ -1,7 +1,7 @@
 {
   "name": "queuedesk-api",
   "version": "1.0.0",
-  "description": "QueueDesk API (NestJS + TypeScript + PostgreSQL + Prisma) \u2014 internal service request portal",
+  "description": "QueueDesk API (NestJS + TypeScript + PostgreSQL + Prisma) — internal service request portal",
   "private": true,
   "license": "MIT",
   "scripts": {

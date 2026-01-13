@@ -37,7 +37,9 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('QueueDesk API')
-    .setDescription('QueueDesk — Service Request Portal API built with NestJS + TypeScript + PostgreSQL + Prisma')
+    .setDescription(
+      'QueueDesk — Service Request Portal API built with NestJS + TypeScript + PostgreSQL + Prisma',
+    )
     .setVersion('1.0.0')
     .addBearerAuth()
     .build();
