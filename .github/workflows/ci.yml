@@ -33,3 +33,4 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
+          JWT_SECRET: test_secret_key_12345
