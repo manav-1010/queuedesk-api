@@ -1,10 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts",
-    "prisma/**/*.ts",
-    "jest.config.ts",
-    ".eslintrc.cjs"
-  ]
+  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts", "jest.config.ts", ".eslintrc.cjs"]
 }
