@@ -1,12 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Ticket, TicketPriority, UserRole } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsQuery } from './dto/list-tickets.query';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
-
-type TicketWithOverdue = Ticket & { isOverdue: boolean };
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class TicketsService {
@@ -14,7 +12,6 @@ export class TicketsService {
 
   async create(userId: string, dto: CreateTicketDto) {
     const createdAt = new Date();
-    const dueAt = this.computeDueAt(createdAt, dto.priority);
 
     return this.prisma.ticket.create({
       data: {
@@ -24,7 +21,7 @@ export class TicketsService {
         priority: dto.priority,
         createdById: userId,
         createdAt,
-        dueAt,
+        dueAt: this.computeDueAt(createdAt, dto.priority),
       },
       include: {
         createdBy: { select: { id: true, email: true, fullName: true, role: true } },
@@ -33,7 +30,7 @@ export class TicketsService {
   }
 
   async list(user: { userId: string; role: UserRole }, query: ListTicketsQuery) {
-    const where: Prisma.TicketWhereInput = {};
+    const where: any = {};
 
     if (user.role !== UserRole.ADMIN) {
       where.createdById = user.userId;
@@ -42,7 +39,6 @@ export class TicketsService {
     if (query.status) where.status = query.status;
     if (query.priority) where.priority = query.priority;
     if (query.category) where.category = { equals: query.category, mode: 'insensitive' };
-
     if (query.q) {
       where.OR = [
         { title: { contains: query.q, mode: 'insensitive' } },
@@ -51,18 +47,16 @@ export class TicketsService {
     }
 
     const sortBy = query.sortBy ?? 'createdAt';
-    const sortDir = (query.sortDir ?? 'desc') as Prisma.SortOrder;
+    const sortDir = query.sortDir ?? 'desc';
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const orderBy = { [sortBy]: sortDir } as Prisma.TicketOrderByWithRelationInput;
-
     const [items, total] = await Promise.all([
       this.prisma.ticket.findMany({
         where,
-        orderBy,
+        orderBy: { [sortBy]: sortDir },
         skip,
         take: limit,
         include: { createdBy: { select: { id: true, email: true, fullName: true, role: true } } },
@@ -70,16 +64,11 @@ export class TicketsService {
       this.prisma.ticket.count({ where }),
     ]);
 
-    const withOverdue: TicketWithOverdue[] = items.map((t) => ({
-      ...t,
-      isOverdue: this.isOverdue(t),
-    }));
-
     return {
       page,
       limit,
       total,
-      items: withOverdue,
+      items: items.map((t) => ({ ...t, isOverdue: this.isOverdue(t as any) })),
     };
   }
 
@@ -88,14 +77,13 @@ export class TicketsService {
       where: { id },
       include: { createdBy: { select: { id: true, email: true, fullName: true, role: true } } },
     });
-
     if (!ticket) throw new NotFoundException('Ticket not found.');
 
     if (user.role !== UserRole.ADMIN && ticket.createdById !== user.userId) {
       throw new ForbiddenException('You do not have access to this ticket.');
     }
 
-    return { ...ticket, isOverdue: this.isOverdue(ticket) };
+    return { ...ticket, isOverdue: this.isOverdue(ticket as any) };
   }
 
   async update(user: { userId: string; role: UserRole }, id: string, dto: UpdateTicketDto) {
@@ -109,6 +97,8 @@ export class TicketsService {
       throw new ForbiddenException('You do not have access to update this ticket.');
     }
 
+    // Users (and admins) can update basic fields here.
+    // Status changes are handled via updateStatus.
     return this.prisma.ticket.update({
       where: { id },
       data: {
@@ -122,9 +112,20 @@ export class TicketsService {
     });
   }
 
-  async updateStatus(id: string, dto: UpdateTicketStatusDto) {
+  async updateStatus(
+    user: { userId: string; role: UserRole },
+    id: string,
+    dto: UpdateTicketStatusDto,
+  ) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundException('Ticket not found.');
+
+    const isOwner = ticket.createdById === user.userId;
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('You do not have access to update this ticket.');
+    }
 
     return this.prisma.ticket.update({
       where: { id },
@@ -133,29 +134,35 @@ export class TicketsService {
     });
   }
 
-  async remove(id: string) {
+  async remove(user: { userId: string; role: UserRole }, id: string) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundException('Ticket not found.');
+
+    const isOwner = ticket.createdById === user.userId;
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('You do not have access to delete this ticket.');
+    }
 
     await this.prisma.ticket.delete({ where: { id } });
     return { deleted: true };
   }
 
-  private computeDueAt(createdAt: Date, priority: TicketPriority): Date {
-    const map: Record<TicketPriority, number> = {
-      [TicketPriority.URGENT]: 1,
-      [TicketPriority.HIGH]: 2,
-      [TicketPriority.MEDIUM]: 3,
-      [TicketPriority.LOW]: 5,
+  private computeDueAt(createdAt: Date, priority: any): Date {
+    const map: Record<string, number> = {
+      URGENT: 1,
+      HIGH: 2,
+      MEDIUM: 3,
+      LOW: 5,
     };
-
-    const days = map[priority] ?? 3;
+    const days = map[String(priority)] ?? 3;
     return new Date(createdAt.getTime() + days * 24 * 60 * 60 * 1000);
   }
 
-  private isOverdue(ticket: Pick<Ticket, 'dueAt' | 'status'>): boolean {
+  private isOverdue(ticket: { dueAt: Date; status: string }): boolean {
     const doneStatuses = new Set(['RESOLVED', 'CLOSED']);
     if (doneStatuses.has(ticket.status)) return false;
-    return Date.now() > new Date(ticket.dueAt).getTime();
+    return new Date().getTime() > new Date(ticket.dueAt).getTime();
   }
 }

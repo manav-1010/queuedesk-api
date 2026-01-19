@@ -12,8 +12,6 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { Roles } from '@/auth/decorators/roles.decorator';
-import { RolesGuard } from '@/auth/guards/roles.guard';
 import { CurrentUser } from '@/auth/decorators/user.decorator';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -55,17 +53,17 @@ export class TicketsController {
     return this.tickets.update(user, id, dto);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() dto: UpdateTicketStatusDto) {
-    return this.tickets.updateStatus(id, dto);
+  async updateStatus(
+    @CurrentUser() user: { userId: string; role: UserRole },
+    @Param('id') id: string,
+    @Body() dto: UpdateTicketStatusDto,
+  ) {
+    return this.tickets.updateStatus(user, id, dto);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.tickets.remove(id);
+  async remove(@CurrentUser() user: { userId: string; role: UserRole }, @Param('id') id: string) {
+    return this.tickets.remove(user, id);
   }
 }
