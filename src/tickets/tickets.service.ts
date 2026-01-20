@@ -4,7 +4,7 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsQuery } from './dto/list-tickets.query';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
-import { UserRole } from '@prisma/client';
+import { Prisma, TicketPriority, TicketStatus, UserRole } from '@prisma/client';
 
 @Injectable()
 export class TicketsService {
@@ -30,8 +30,9 @@ export class TicketsService {
   }
 
   async list(user: { userId: string; role: UserRole }, query: ListTicketsQuery) {
-    const where: any = {};
+    const where: Prisma.TicketWhereInput = {};
 
+    // Non-admins can only see their own tickets
     if (user.role !== UserRole.ADMIN) {
       where.createdById = user.userId;
     }
@@ -39,6 +40,7 @@ export class TicketsService {
     if (query.status) where.status = query.status;
     if (query.priority) where.priority = query.priority;
     if (query.category) where.category = { equals: query.category, mode: 'insensitive' };
+
     if (query.q) {
       where.OR = [
         { title: { contains: query.q, mode: 'insensitive' } },
@@ -46,8 +48,24 @@ export class TicketsService {
       ];
     }
 
-    const sortBy = query.sortBy ?? 'createdAt';
-    const sortDir = query.sortDir ?? 'desc';
+    // Only allow sorting by known safe fields (prevents weird values + keeps Prisma types happy)
+    const allowedSortFields = new Set<keyof Prisma.TicketOrderByWithRelationInput>([
+      'createdAt',
+      'updatedAt',
+      'dueAt',
+      'priority',
+      'status',
+      'category',
+      'title',
+    ]);
+
+    const sortBy: keyof Prisma.TicketOrderByWithRelationInput =
+      query.sortBy &&
+      allowedSortFields.has(query.sortBy as keyof Prisma.TicketOrderByWithRelationInput)
+        ? (query.sortBy as keyof Prisma.TicketOrderByWithRelationInput)
+        : 'createdAt';
+
+    const sortDir: Prisma.SortOrder = query.sortDir === 'asc' ? 'asc' : 'desc';
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -68,7 +86,7 @@ export class TicketsService {
       page,
       limit,
       total,
-      items: items.map((t) => ({ ...t, isOverdue: this.isOverdue(t as any) })),
+      items: items.map((t) => ({ ...t, isOverdue: this.isOverdue(t) })),
     };
   }
 
@@ -83,7 +101,9 @@ export class TicketsService {
       throw new ForbiddenException('You do not have access to this ticket.');
     }
 
-    return { ...ticket, isOverdue: this.isOverdue(ticket as any) };
+    // "isOverdue" is computed, not stored.
+    // That way it's always correct even if time passes without updates.
+    return { ...ticket, isOverdue: this.isOverdue(ticket) };
   }
 
   async update(user: { userId: string; role: UserRole }, id: string, dto: UpdateTicketDto) {
@@ -149,20 +169,23 @@ export class TicketsService {
     return { deleted: true };
   }
 
-  private computeDueAt(createdAt: Date, priority: any): Date {
-    const map: Record<string, number> = {
+  // Due date is derived from createdAt + priority.
+  // Keeping it server-side prevents clients from gaming due dates.
+  private computeDueAt(createdAt: Date, priority: TicketPriority): Date {
+    const map: Record<TicketPriority, number> = {
       URGENT: 1,
       HIGH: 2,
       MEDIUM: 3,
       LOW: 5,
     };
-    const days = map[String(priority)] ?? 3;
+
+    const days = map[priority] ?? 3;
     return new Date(createdAt.getTime() + days * 24 * 60 * 60 * 1000);
   }
 
-  private isOverdue(ticket: { dueAt: Date; status: string }): boolean {
-    const doneStatuses = new Set(['RESOLVED', 'CLOSED']);
+  private isOverdue(ticket: { dueAt: Date; status: TicketStatus }): boolean {
+    const doneStatuses: ReadonlySet<TicketStatus> = new Set(['RESOLVED', 'CLOSED']);
     if (doneStatuses.has(ticket.status)) return false;
-    return new Date().getTime() > new Date(ticket.dueAt).getTime();
+    return Date.now() > new Date(ticket.dueAt).getTime();
   }
 }

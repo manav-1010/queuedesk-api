@@ -1,64 +1,74 @@
 # QueueDesk API
 
-**QueueDesk** is an internal _service request portal_ backend that I built to show real-world backend skills (auth, RBAC, SQL, Docker, CI, deployment) in a project that feels like something a team would actually use.
+QueueDesk is a backend for an internal service request portal. This is the kind of system a team can use to track operational requests such as IT support, facilities issues, access requests, onboarding tasks, and other internal helpdesk-style workflows.
 
-It supports a simple ticket workflow (create → track → resolve) with **filtering/sorting/pagination** and a lightweight **SLA due date** per ticket priority.
+The API supports authentication, role-based access control, ticket management, and a clean listing experience with filtering, sorting, and pagination. Each ticket also gets a simple SLA-style due date based on priority so it’s easy to spot what needs attention.
 
-## Why this project
+## Real-world use cases
 
-I wanted a project that matches common junior backend job requirements in Canada:
+1. IT helpdesk requests  
+   Wi-Fi issues, software access, device problems, account unlocks, internal tooling requests.
 
-- REST API design + validation
-- JWT auth + role-based access (USER / ADMIN)
-- PostgreSQL schema + migrations + seed data
-- Docker Compose for local dev
-- Swagger docs + CI (GitHub Actions)
-- Deployed API + real hosted Postgres
+2. Facilities requests  
+   Maintenance, room setup, equipment requests, building issues.
 
----
+3. Internal service intake  
+   Requests routed to teams such as finance, HR, ops, engineering enablement, etc.
 
-## Features
+4. Lightweight ticket tracking  
+   For teams that want something simpler than a full ITSM platform.
 
-- JWT auth (register/login)
-- Roles: `USER`, `ADMIN`
-- Tickets CRUD (users can manage their own tickets; admins can manage everything)
-- List tickets with **filtering / sorting / pagination**
-- **SLA due date** stored on each ticket
-- Swagger docs at `/docs`
-- Health check at `/health`
-- Local dev with Docker Compose
-- GitHub Actions CI (lint + build + tests)
+## Core features
 
-## SLA rules (simple + realistic)
+1. Authentication  
+   Register and login using JWT.
 
-When a ticket is created, `dueAt` is set automatically:
+2. Role-based access control  
+   Roles supported: USER and ADMIN.
 
-- `URGENT` → +1 day
-- `HIGH` → +2 days
-- `MEDIUM` → +3 days
-- `LOW` → +5 days
+3. Tickets workflow  
+   Create tickets, update fields, update ticket status, and delete tickets with ownership and role rules.
 
-If priority changes, `dueAt` is recalculated using the original `createdAt`.
+4. Ticket listing  
+   Filtering, sorting, pagination, and basic search support.
 
----
+5. SLA-style due date  
+   A dueAt field is calculated based on priority and remains consistent over time.
 
-## Tech
+6. API documentation and health checks  
+   Swagger UI at /docs and health endpoint at /health.
 
-- NestJS (TypeScript)
-- Prisma ORM + PostgreSQL
-- Passport JWT
-- class-validator / class-transformer
+7. Local dev and CI  
+   Local Postgres with Docker Compose and CI checks via GitHub Actions.
 
----
+## SLA rules
+
+When a ticket is created, dueAt is set automatically based on priority:
+
+1. URGENT: +1 day
+2. HIGH: +2 days
+3. MEDIUM: +3 days
+4. LOW: +5 days
+
+If priority changes, dueAt is recalculated using the original createdAt.
+
+## Tech stack
+
+1. NestJS (TypeScript)
+2. PostgreSQL + Prisma ORM
+3. Passport JWT
+4. class-validator / class-transformer
+5. Docker Compose (local Postgres)
+6. GitHub Actions (CI)
 
 ## Quick start (local)
 
-### 1) Prereqs
+Prereqs:
 
-- Node.js 20+
-- Docker Desktop
+1. Node.js 20+
+2. Docker Desktop
 
-### 2) Setup
+Setup:
 
 ```bash
 cp .env.example .env
@@ -73,59 +83,61 @@ npm run seed
 npm run start:dev
 ```
 
-API (prefixed): http://localhost:3000/api  
-Swagger: http://localhost:3000/docs  
-Health: http://localhost:3000/health
+## URLs
 
----
+1. API (prefixed): http://localhost:3000/api
+2. Swagger UI: http://localhost:3000/docs
+3. Health: http://localhost:3000/health
 
 ## Environment variables
 
 See `.env.example`.
 
----
-
-## Common endpoints
+## API overview
 
 Auth:
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+1. POST /api/auth/register
+2. POST /api/auth/login
 
 Tickets (authenticated):
 
-- `POST /api/tickets`
-- `GET /api/tickets` (filter/sort/paginate)
-- `GET /api/tickets/:id`
-- `PATCH /api/tickets/:id`
+1. POST /api/tickets
+2. GET /api/tickets
+3. GET /api/tickets/:id
+4. PATCH /api/tickets/:id
 
-Admin-only:
+Privileged actions (owner or admin depending on rules):
 
-- `PATCH /api/tickets/:id/status`
-- `DELETE /api/tickets/:id`
-
----
+1. PATCH /api/tickets/:id/status
+2. DELETE /api/tickets/:id
 
 ## Deployment (Render + Neon)
 
-- Create a Neon Postgres DB, copy `DATABASE_URL`
-- Create a Render Web Service from this repo
-- Set env vars in Render:
-  - `DATABASE_URL`
-  - `JWT_SECRET`
-  - `JWT_EXPIRES_IN` (optional)
-  - `NODE_ENV=production`
-- Build command:
-  - `npm ci && npx prisma generate && npm run build`
-- Start command:
-  - `node dist/main.js`
+Steps:
 
-Run migrations once in production:
+1. Create a Neon Postgres database and copy the `DATABASE_URL`.
+2. Create a Render Web Service connected to this repository.
+3. Add environment variables in Render:
+   DATABASE_URL  
+   JWT_SECRET  
+   JWT_EXPIRES_IN (optional)  
+   NODE_ENV=production
 
-- `npx prisma migrate deploy`
+Build command:
 
----
+```bash
+npm ci && npx prisma generate && npm run build
+```
 
-## License
+Start command:
 
-MIT
+```bash
+node dist/main.js
+```
+
+Run migrations in production:
+
+```bash
+npx prisma migrate deploy
+```

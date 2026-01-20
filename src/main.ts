@@ -12,10 +12,17 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const prefix = config.get<string>('API_PREFIX') ?? '/api';
+
+  // Keep all API routes under /api (clean separation from /health and /docs)
   app.setGlobalPrefix(prefix, { exclude: ['health', 'docs'] });
 
+  // Basic security headers. Not a silver bullet, but a good default for public APIs.
   app.use(helmet());
+
+  // Response compression for better performance (especially helpful once payloads grow)
   app.use(compression());
+
+  // Simple rate limit to slow down brute-force / spammy requests.
   app.use(
     rateLimit({
       windowMs: 60_000,
@@ -27,6 +34,7 @@ async function bootstrap() {
 
   app.enableCors({ origin: true });
 
+  // Strict input validation so we fail fast and don’t let junk data reach the DB layer.
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -35,6 +43,7 @@ async function bootstrap() {
     }),
   );
 
+  // Swagger is for local/dev + demo. In production, we can keep it but lock it down if needed.
   const swaggerConfig = new DocumentBuilder()
     .setTitle('QueueDesk API')
     .setDescription(

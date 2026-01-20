@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Role-based access:
+// USER -> only their own tickets
+// ADMIN -> can manage all tickets
+
 enum UserRole {
   USER
   ADMIN
@@ -38,6 +42,9 @@ model User {
   tickets      Ticket[]   @relation("UserTickets")
   comments     TicketComment[]
 }
+
+// Ticket is the main entity for QueueDesk.
+// dueAt is stored to make sorting/filtering easy, but "isOverdue" is computed at runtime.
 
 model Ticket {
   id          String        @id @default(uuid())
