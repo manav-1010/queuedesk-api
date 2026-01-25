@@ -21,6 +21,7 @@ export class AuthService {
       throw new BadRequestException('Email already in use.');
     }
 
+    // Hash passwords before storing them. Never store plain text passwords.
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     const user = await this.prisma.user.create({
@@ -49,6 +50,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
+    // Token payload stays minimal (user id + role). Avoid putting personal data into JWT.
     const token = this.signToken(user.id, user.email, user.role);
     return {
       user: { id: user.id, email: user.email, role: user.role, fullName: user.fullName },

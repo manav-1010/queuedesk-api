@@ -21,7 +21,10 @@ import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 
 @ApiTags('tickets')
 @ApiBearerAuth()
+// Everything below requires a valid JWT (Swagger: paste ONLY the raw token, no "Bearer")
 @UseGuards(JwtAuthGuard)
+// Controller stays thin: validation + routing.
+// All business logic (including auth checks) lives in the service.
 @Controller('tickets')
 export class TicketsController {
   constructor(private readonly tickets: TicketsService) {}
@@ -39,6 +42,8 @@ export class TicketsController {
     return this.tickets.list(user, query);
   }
 
+  // Ownership rules are enforced in the service layer (owner OR admin).
+  // Controller stays thin on purpose.
   @Get(':id')
   async get(@CurrentUser() user: { userId: string; role: UserRole }, @Param('id') id: string) {
     return this.tickets.get(user, id);

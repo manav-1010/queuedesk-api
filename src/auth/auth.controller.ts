@@ -9,6 +9,7 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Auth endpoints are intentionally simple: register -> login -> use JWT for protected routes.
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
