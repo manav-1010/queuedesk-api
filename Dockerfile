@@ -1,6 +1,9 @@
-# --- build stage ---
-FROM node:20-alpine AS builder
+# ---------- build ----------
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install
@@ -12,10 +15,13 @@ COPY tsconfig*.json nest-cli.json ./
 COPY src ./src
 RUN npm run build
 
-# --- runtime stage ---
-FROM node:20-alpine
+# ---------- runtime ----------
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/package.json /app/package-lock.json* ./
 RUN npm ci --omit=dev || npm install --omit=dev
