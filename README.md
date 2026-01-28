@@ -2,7 +2,18 @@
 
 QueueDesk is a backend for an internal service request portal. This is the kind of system a team can use to track operational requests such as IT support, facilities issues, access requests, onboarding tasks, and other internal helpdesk-style workflows.
 
-The API supports authentication, role-based access control, ticket management, and a clean listing experience with filtering, sorting, and pagination. Each ticket also gets a simple SLA-style due date based on priority so it’s easy to spot what needs attention.
+The API includes authentication, role-based access control, ticket management, and a listing experience with filtering, sorting, and pagination. Each ticket also gets an SLA-style due date based on priority so it’s easy to spot what needs attention.
+
+## Live deployment
+
+- **Base URL:** https://queuedesk-api-6.onrender.com
+- **Swagger UI:** https://queuedesk-api-6.onrender.com/docs
+- **Health check:** https://queuedesk-api-6.onrender.com/health
+
+Notes:
+
+- Visiting `/` may return 404, which is expected (this is an API-only service).
+- Use `/docs` to explore and test endpoints.
 
 ## Real-world use cases
 
@@ -83,11 +94,11 @@ npm run seed
 npm run start:dev
 ```
 
-## URLs
+## Local URLs
 
-1. API (prefixed): http://localhost:3000/api
-2. Swagger UI: http://localhost:3000/docs
-3. Health: http://localhost:3000/health
+1. Swagger UI: http://localhost:3000/docs
+2. Health: http://localhost:3000/health
+3. API base (prefixed): http://localhost:3000/api
 
 ## Environment variables
 
@@ -112,17 +123,23 @@ Privileged actions (owner or admin depending on rules):
 1. PATCH /api/tickets/:id/status
 2. DELETE /api/tickets/:id
 
-## Deployment (Render + Neon)
+## Deployment notes
 
-Steps:
+Deployed on Render with a Neon-hosted PostgreSQL database.
 
-1. Create a Neon Postgres database and copy the `DATABASE_URL`.
-2. Create a Render Web Service connected to this repository.
-3. Add environment variables in Render:
-   DATABASE_URL  
-   JWT_SECRET  
-   JWT_EXPIRES_IN (optional)  
-   NODE_ENV=production
+Production environment variables:
+
+Required:
+
+1. DATABASE_URL
+2. JWT_SECRET
+
+Optional (depending on setup):
+
+1. DIRECT_URL (common with Neon + Prisma, especially when using pooling)
+2. JWT_EXPIRES_IN
+3. NODE_ENV
+4. API_PREFIX
 
 Build command:
 
